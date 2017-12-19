@@ -131,7 +131,9 @@ const struct AlgoEntry g_algolist[] =
     { _("Slow Sort"), &SlowSort, 128, inversion_count_instrumented,
       wxEmptyString },
 	{ _("Smart Sort"), &smartSort, UINT_MAX, 512,
-	_("A combo sort I'm working on") }
+	_("A combo sort I'm working on") },
+	{ _("Gravity Sort"), &gravitySort, UINT_MAX, 512,
+	_("A natural sorting algorithm of O(S) complexity, where S is the sum of input numbers.") }
 };
 
 const size_t g_algolist_size = sizeof(g_algolist) / sizeof(g_algolist[0]);
@@ -2297,4 +2299,42 @@ void flashsort(SortArray& array, size_t length)
 void flashSortMain(SortArray& array)
 {
 	flashsort(array, array.size());
+}
+
+void gravitySort(SortArray& A)
+{
+	// make copy array of ints
+	int copy[A.size()];
+	std::vector<value_type> copy2(A.size());
+	
+	for (size_t i = 0; i < A.size(); i += 1)
+	{
+		copy[i] = A[i].get();
+	}
+
+	// get max
+	size_t max = findMax(A, A.size());
+
+	size_t index = 0;
+
+	// iterate through array, let each int fall one value and check if it hits the floor
+	while (copy[max] > 0)
+	{
+		for (size_t o = 0; o < A.size(); o += 1)
+		{
+			copy[o] -= 1;
+			if (copy[o] == 0)
+			{
+				copy2[index] = A[o];
+				A.mark(o, 2);
+				index += 1;
+			}
+		}
+	}
+	A.unmark_all();
+	// set A to finished array
+	for (size_t i = 0; i < A.size(); i += 1)
+	{
+		A.set(i, copy2[i]);
+	}
 }
