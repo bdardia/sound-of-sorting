@@ -10,6 +10,7 @@
 //
 
 #include <wx/wx.h>
+#include <wx/hyperlink.h>
 #include "WAbout_wxg.h"
 
 // begin wxGlade: ::extracode

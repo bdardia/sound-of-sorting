@@ -75,6 +75,8 @@ const struct AlgoEntry g_algolist[] =
       wxEmptyString },
     { _("Cocktail Shaker Sort"), &CocktailShakerSort, UINT_MAX, UINT_MAX,
       wxEmptyString },
+	{ _("Cocktail-Merge (Quarters)"), &dualCocktailMerge, UINT_MAX, 512,
+	_("Cocktail sorts each quarter, then merges the quarters.") },
     { _("Gnome Sort"), &GnomeSort, UINT_MAX, UINT_MAX,
       wxEmptyString },
     { _("Comb Sort"), &CombSort, UINT_MAX, UINT_MAX,
@@ -98,8 +100,16 @@ const struct AlgoEntry g_algolist[] =
     { _("Radix Sort (LSD)"), &RadixSortLSD, UINT_MAX, 512,
       _("Least significant digit radix sort, which copies item into a shadow "
         "array during counting.") },
+	{ _("Ben Radix"), &BenRadix, UINT_MAX, 512,
+	_("My Radix.") },
+	{ _("Radix LSD In-Place"), &inPlaceRadix, UINT_MAX, 512,
+	_("Similar to American flag sort.") },
+	{ _("Pancake Sort"), &pancakeSort, UINT_MAX, 512,
+	_("Aims for the minimun number of inversions.") },
     { _("Radix Sort (MSD)"), &RadixSortMSD, UINT_MAX, UINT_MAX,
       _("Most significant digit radix sort, which permutes items in-place by walking cycles.") },
+	{ _("Pigeonhole Sort"), &pigeonholeSort, UINT_MAX, 512,
+	_("Works well when the number of elements and number of possible key values are similar.") },
     { _("std::sort (gcc)"), &StlSort, UINT_MAX, inversion_count_instrumented,
       wxEmptyString },
     { _("std::stable_sort (gcc)"), &StlStableSort, UINT_MAX, inversion_count_instrumented,
@@ -108,6 +118,8 @@ const struct AlgoEntry g_algolist[] =
       wxEmptyString },
     { _("Tim Sort"), &TimSort, UINT_MAX, inversion_count_instrumented,
       wxEmptyString },
+	{ _("Flashsort"), &flashSortMain, UINT_MAX, 512,
+	_("Will go quadratic if the distribution is skewed.") },
     { _("Block Merge Sort (WikiSort)"), &WikiSort, UINT_MAX, inversion_count_instrumented,
       _("An O(1) place O(n log n) time stable merge sort.") },
     { _("Bogo Sort"), &BogoSort, 10, UINT_MAX,
@@ -117,7 +129,9 @@ const struct AlgoEntry g_algolist[] =
     { _("Stooge Sort"), &StoogeSort, 256, inversion_count_instrumented,
       wxEmptyString },
     { _("Slow Sort"), &SlowSort, 128, inversion_count_instrumented,
-      wxEmptyString }
+      wxEmptyString },
+	{ _("Smart Sort"), &smartSort, UINT_MAX, 512,
+	_("A combo sort I'm working on") }
 };
 
 const size_t g_algolist_size = sizeof(g_algolist) / sizeof(g_algolist[0]);
@@ -1681,5 +1695,606 @@ void CycleSort(SortArray& A)
 {
     CycleSort(A, A.size());
 }
+// refer to implemented RadixSortLSD
+// cd /home/sound-of-sorting-master/sound-of-sorting-master
+void BenRadix(SortArray& inputArray)
+{
 
-// ****************************************************************************
+	std::vector<value_type> copy(inputArray.size());
+	const unsigned int RADIX = 4;
+	unsigned int p = 0;
+	int runTime = 1;
+
+	size_t mod = pow(RADIX, p);
+
+	bool done = false;
+	while (!done)
+	{
+		done = true;
+		for (size_t i = 1; i < inputArray.size(); i += 1)
+		{
+			if (inputArray[i].get() < inputArray[i - 1].get())
+			{
+				done = false;
+			}
+		}
+		if (done)
+		{
+			continue;
+		}
+		if (runTime > 5)
+		{
+			TimSort(inputArray);
+			continue;
+		}
+		size_t startingNum = 0;
+		size_t startingIndex = 0;
+
+		while (startingNum < 4)
+		{
+			for (size_t i = 0; i < inputArray.size(); i += 1)
+			{
+				size_t currentDigit = inputArray[i].get() / mod % RADIX;
+				if (currentDigit == startingNum)
+				{
+					copy.at(startingIndex) = inputArray[i];
+					startingIndex += 1;
+				}
+			}
+			startingNum += 1;
+		}
+
+		mod += 1;
+
+		for (size_t i = 0; i < copy.size(); i += 1)
+		{
+			inputArray.set(i, copy[i]);
+		}
+
+		runTime += 1;
+	}
+
+	
+}
+void flip(SortArray& arr, size_t i)
+{
+	size_t start = 0;
+	while (start < i)
+	{
+		value_type temp = arr[start];
+		arr.set(start, arr[i]);
+		arr.set(i, temp);
+		start++;
+		i--;
+	}
+}
+
+/* Returns index of the maximum element in arr[0..n-1] */
+size_t findMax(SortArray& arr, size_t n)
+{
+	size_t mi, i;
+	for (mi = 0, i = 0; i < n; ++i)
+	{
+		if (arr[i] > arr[mi])
+		{
+			mi = i;
+		}
+		
+	}
+	return mi;
+}
+
+// The main function that sorts given array using flip 
+// operations
+void pancakeSort(SortArray& arr)
+{
+	size_t n = arr.size();
+	// Start from the complete array and one by one reduce
+	// current size by one
+	for (size_t curr_size = n; curr_size > 1; --curr_size)
+	{
+		// Find index of the maximum element in 
+		// arr[0..curr_size-1]
+		size_t mi = findMax(arr, curr_size);
+
+		// Move the maximum element to end of current array
+		// if it's not already at the end
+		if (mi != curr_size - 1)
+		{
+			// To move at the end, first move maximum number
+			// to beginning 
+			flip(arr, mi);
+
+			// Now move the maximum number to end by reversing
+			// current array
+			flip(arr, curr_size - 1);
+		}
+	}
+}
+
+void inPlaceRadix(SortArray& v) {
+	//search for maximum number
+	size_t max_number = v[0].get();
+	for (size_t i = 1; i<v.size(); i++) {
+		if (max_number < v[i].get())
+			max_number = v[i].get();
+	}
+
+	int bucket[10]; // store first index for that digit
+	int bucket_max_index[10]; // store maximum index for that digit 
+	size_t exp = 1;
+
+	while (max_number / exp > 0) {
+		memset(&bucket, 0, sizeof(bucket));
+		memset(&bucket_max_index, 0, sizeof(bucket_max_index));
+		for (int i = 0; i<v.size(); i++) {
+			bucket[(v[i].get() / exp) % 10]++;
+		}
+
+		size_t index = v.size();
+		for (int i = 9; i >= 0; i--) {
+			index -= bucket[i];
+			bucket_max_index[i] = index + bucket[i];
+			bucket[i] = index;
+		}
+
+		index = 0;
+		size_t n = v.size();
+		std::vector<value_type> temp(n);
+		for (size_t i = 0; i<v.size(); i++) {
+			size_t digit = (v[i].get() / exp) % 10;
+			temp[bucket[digit]] = v[i];
+			bucket[digit]++;
+		}
+
+		for (size_t i = 0; i<v.size(); i++) {
+			v.set(i, temp[i]);
+		}
+
+		exp *= 10;
+	}
+}
+
+void smartSort(SortArray& a)
+{
+	int runTime = 1;
+	while (runTime <= 3)
+	{
+		int left = 0;
+		int right = a.size() - 1;
+		if (a[left] > a[right]) {
+			a.swap(left, right);
+		}
+
+		const value_type p = a[left];
+		const value_type q = a[right];
+
+		a.mark(left);
+		a.mark(right);
+
+		volatile ssize_t l = left + 1;
+		volatile ssize_t g = right - 1;
+		volatile ssize_t k = l;
+
+		a.watch(&l, 3);
+		a.watch(&g, 3);
+		a.watch(&k, 3);
+
+		while (k <= g)
+		{
+			if (a[k] < p) {
+				a.swap(k, l);
+				++l;
+			}
+			else if (a[k] >= q) {
+				while (a[g] > q && k < g)  --g;
+				a.swap(k, g);
+				--g;
+
+				if (a[k] < p) {
+					a.swap(k, l);
+					++l;
+				}
+			}
+			++k;
+		}
+		--l;
+		++g;
+		a.swap(left, l);
+		a.swap(right, g);
+
+		a.unmark_all();
+		a.unwatch_all();
+
+		int oldleft = left;
+		int oldright = right;
+
+		volatile ssize_t oldl = oldleft + 1;
+		volatile ssize_t oldg = oldright - 1;
+
+		// all 3 iterations
+		switch (runTime % 3)
+		{
+		case 1:
+		{
+			right = oldl - 1;
+			left = oldleft;
+		}
+		case 2:
+		{
+			left = oldl + 1;
+			right = oldg - 1;
+		}
+		case 0:
+		{
+			left = oldg + 1;
+			right = oldright;
+		}
+		}
+
+		runTime += 1;
+	}
+	
+	// Timsort the mostly sorted list
+	TimSort(a);
+}
+
+void CocktailShakerSort2(SortArray& A, size_t lo, size_t hi)
+{
+	size_t mov = lo;
+
+	while (lo < hi)
+	{
+		for (size_t i = hi; i > lo; --i)
+		{
+			if (A[i - 1] > A[i])
+			{
+				A.swap(i - 1, i);
+				mov = i;
+			}
+		}
+
+		lo = mov;
+
+		for (size_t i = lo; i < hi; ++i)
+		{
+			if (A[i] > A[i + 1])
+			{
+				A.swap(i, i + 1);
+				mov = i;
+			}
+		}
+
+		hi = mov;
+	}
+}
+
+void dualCocktailMerge(SortArray& A)
+{
+	// split the array
+	size_t mid = (size_t)(A.size() / 2);
+	size_t firstQuarter = (size_t)(mid / 2);
+	size_t thirdQuarter = mid + firstQuarter;
+
+	A.mark(firstQuarter, 2);
+	A.mark(mid, 2);
+	A.mark(thirdQuarter, 2);
+	
+	// cocktail each quarter
+	CocktailShakerSort2(A, 0, firstQuarter);
+	A.unmark(firstQuarter);
+	CocktailShakerSort2(A, firstQuarter, mid);
+	A.unmark(mid);
+	CocktailShakerSort2(A, mid, thirdQuarter);
+	A.unmark(thirdQuarter);
+	CocktailShakerSort2(A, thirdQuarter, A.size() - 1);
+
+	// merge the quarters (timsort is godlike)
+	TimSort(A);
+}
+
+void pigeonholeSort(SortArray& arr)
+{
+	size_t n = arr.size();
+	// Find minimum and maximum values in arr[]
+	int min = arr[0].get(), max = arr[0].get();
+	for (size_t i = 1; i < n; i++)
+	{
+		if (arr[i].get() < min)
+			min = arr[i].get();
+		if (arr[i].get() > max)
+			max = arr[i].get();
+	}
+	int range = max - min + 1; // Find range
+
+							   // Create an array of vectors. Size of array
+							   // range. Each vector represents a hole that
+							   // is going to contain matching elements.
+	std::vector<value_type> holes[range];
+
+	// Traverse through input array and put every
+	// element in its respective hole
+	for (size_t i = 0; i < n; i++)
+		holes[arr[i].get() - min].push_back(arr[i]);
+
+	// Traverse through all holes one by one. For
+	// every hole, take its elements and put in
+	// array.
+	size_t index = 0;  // index in sorted array
+	for (size_t i = 0; i < range; i++)
+	{
+		std::vector<value_type>::iterator it;
+		for (it = holes[i].begin(); it != holes[i].end(); ++it)
+			arr.set(index++, *it);
+	}
+}
+
+void InsertionSortIndex(SortArray& A, size_t length)
+{
+	for (size_t i = 1; i < length; ++i)
+	{
+		value_type key = A[i];
+		A.mark(i);
+
+		ssize_t j = i - 1;
+		while (j >= 0 && A[j] > key)
+		{
+			A.swap(j, j + 1);
+			j--;
+		}
+
+		A.unmark(i);
+	}
+}
+
+void flashsort(SortArray& array, size_t length)
+{
+	if (length == 0) return;
+
+	//20% of the number of elements or 0.2n classes will
+	//be used to distribute the input data set into
+	//there must be at least 2 classes (hence the addition)
+	int m = (int)((0.2 * length) + 2);
+
+	//-------CLASS FORMATION-------
+
+	//O(n)
+	//compute the max and min values of the input data
+	int min, max;
+	size_t maxIndex;
+	min = max = array[0].get();
+	maxIndex = 0;
+
+	for (size_t i = 1; i < length - 1; i += 2)
+	{
+		int small;
+		int big;
+		size_t bigIndex;
+
+		//which is bigger A(i) or A(i+1)
+		if (array[i] < array[i + 1])
+		{
+			small = array[i].get();
+			big = array[i + 1].get();
+			bigIndex = i + 1;
+		}
+		else
+		{
+			big = array[i].get();
+			bigIndex = i;
+			small = array[i + 1].get();
+		}
+
+		if (big > max)
+		{
+			max = big;
+			maxIndex = bigIndex;
+		}
+
+		if (small < min)
+		{
+			min = small;
+		}
+	}
+
+	//do the last element
+	if (array[length - 1].get() < min)
+	{
+		min = array[length - 1].get();
+	}
+	else if (array[length - 1].get() > max)
+	{
+		max = array[length - 1].get();
+		maxIndex = length - 1;
+	}
+
+	if (max == min)
+	{
+		//all the elements are the same
+		return;
+	}
+
+	//dynamically allocate the storage for L
+	//note that L is in the range 1...m (hence
+	//the extra 1)
+	size_t* L = new size_t[m + 1];
+
+	//O(m)
+	//initialize L to contain all zeros (L[0] is unused)
+	for (size_t t = 1; t <= m; t++)
+	{
+		L[t] = 0;
+	}
+
+	//O(n)
+	//use the function K(A(i)) = 1 + INT((m-1)(A(i)-Amin)/(Amax-Amin))
+	//to classify each A(i) into a number from 1...m
+	//(note that this is mainly just a percentage calculation)
+	//and then store a count of each distinct class K in L(K)
+	//For instance, if there are 22 A(i) values that fall into class
+	//K == 5 then the count in L(5) would be 22
+
+	//IMPORTANT: note that the class K == m only has elements equal to Amax
+
+	//precomputed constant
+	double c = (m - 1.0) / (max - min);
+	size_t K;
+	for (size_t h = 0; h < length; h++)
+	{
+		//classify the A(i) value
+		K = ((size_t)((array[h].get() - min) * c)) + 1;
+
+		//assert: K is in the range 1...m
+
+		//add one to the count for this class
+		L[K] += 1;
+	}
+
+	//O(m)
+	//sum over each L(i) such that each L(i) contains
+	//the number of A(i) values that are in the ith
+	//class or lower (see counting sort for more details)
+	for (K = 2; K <= m; K++)
+	{
+		L[K] = L[K] + L[K - 1];
+	}
+
+	//-------PERMUTATION-------
+
+	//swap the max value with the first value in the array
+	value_type temp = array[maxIndex];
+	array.set(maxIndex, array[0]);
+	array.set(0, temp);
+
+	//Except when being iterated upwards,
+	//j always points to the first A(i) that starts
+	//a new class boundary && that class hasn't yet
+	//had all of its elements moved inside its borders;
+
+	//This is called a cycle leader since you know 
+	//that you can begin permuting again here. You know
+	//this becuase it is the lowest index of the class
+	//and as such A(j) must be out of place or else all
+	//the elements of this class have already been placed
+	//within the borders of the this class (which means
+	//j wouldn't be pointing to this A(i) in the first place)
+	int j = 0;
+
+	//K is the class of an A(i) value. It is always in the range 1..m
+	K = m;
+
+	//the number of elements that have been moved
+	//into their correct class
+	size_t numMoves = 0;
+
+	//O(n)
+	//permute elements into their correct class; each
+	//time the class that j is pointing to fills up
+	//then iterate j to the next cycle leader
+	//
+	//do not use the n - 1 optimization because that last element
+	//will not have its count decreased (this causes trouble with
+	//determining the correct classSize in the last step)
+	while (numMoves < length)
+	{
+		//if j does not point to the begining of a class
+		//that has at least 1 element still needing to be
+		//moved to within the borders of the class then iterate
+		//j upward until such a class is found (such a class
+		//must exist). In other words, find the next cycle leader
+		while (j >= L[K])
+		{
+			j++;
+			//classify the A(j) value
+			K = ((int)((array[j].get() - min) * c)) + 1;
+		}
+
+		//evicted always holds the value of an element whose location
+		//in the array is free to be written into //aka FLASH
+		int evicted = array[j].get();
+		value_type evicted2 = array[j];
+
+		//while j continues to meet the condition that it is
+		//pointing to the start of a class that has at least one
+		//element still outside its borders (the class isn't full)
+		while (j < L[K])
+		{
+			//compute the class of the evicted value
+			K = ((int)((evicted - min) * c)) + 1;
+
+			//get a location that is inside the evicted
+			//element's class boundaries
+			size_t location = L[K] - 1;
+
+			//swap the value currently residing at the new
+			//location with the evicted value
+			value_type temp = array[location];
+			array.set(location, evicted2);
+			evicted2 = temp;
+			evicted = temp.get();
+
+			//decrease the count for this class
+			//see counting sort for why this is done
+			L[K] -= 1;
+
+			//another element was moved
+			numMoves++;
+		}
+	}
+
+	//-------RECURSION or STRAIGHT INSERTION-------
+
+	//if the classes do not have the A(i) values uniformly distributed
+	//into each of them then insertion sort will not produce O(n) results;
+
+	//look for classes that have too many elements; ideally each class
+	//(except the topmost or K == m class) should have about n/m elements;
+	//look for classes that exceed n/m elements by some threshold AND have
+	//more than some minimum number of elements to flashsort recursively
+
+	//if the class has 25% more elements than it should
+	int threshold = (int)(1.25 * ((length / m) + 1));
+	const int minElements = 30;
+
+	//for each class decide whether to insertion sort its members
+	//or recursively flashsort its members;
+	//skip the K == m class because it is already sorted
+	//since all of the elements have the same value
+	for (K = m - 1; K >= 1; K--)
+	{
+		//determine the number of elments in the Kth class
+		size_t classSize = L[K + 1] - L[K];
+
+		//if the class size is larger than expected but not
+		//so small that insertion sort could make quick work
+		//of it then...
+		if (classSize > threshold && classSize > minElements)
+		{
+			//...attempt to flashsort the class. This will work 
+			//well if the elements inside the class are uniformly
+			//distributed throughout the class otherwise it will 
+			//perform badly, O(n^2) worst case, since we will have 
+			//performed another classification and permutation step
+			//and not succeeded in making the problem significantly
+			//smaller for the next level of recursion. However,
+			//progress is assured since at each level the elements
+			//with the maximum value will get sorted.
+			flashsort(array, classSize);
+		}
+		else //perform insertion sort on the class
+		{
+			if (classSize > 1)
+			{
+				InsertionSortIndex(array, array.size());
+				return;
+			}
+		}
+	}
+
+	delete[] L;
+}
+
+void flashSortMain(SortArray& array)
+{
+	flashsort(array, array.size());
+}

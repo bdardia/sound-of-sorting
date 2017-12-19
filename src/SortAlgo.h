@@ -101,6 +101,15 @@ void SlowSort(class SortArray& a);
 
 void CycleSort(class SortArray& a);
 
+// new stuff
+void BenRadix(class SortArray& a);
+void pancakeSort(class SortArray& a);
+void inPlaceRadix(class SortArray &a);
+void smartSort(class SortArray &a);
+void dualCocktailMerge(class SortArray &a);
+void pigeonholeSort(class SortArray &a);
+void flashSortMain(class SortArray &a);
+
 // ****************************************************************************
 // *** Iterator Adapter
 
