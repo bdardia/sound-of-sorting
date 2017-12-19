@@ -84,7 +84,7 @@ struct SortedCheck
 
 int SortTestApp::OnRun()
 {
-    wxPrintf(_T("Sound of Sorting " PACKAGE_VERSION " - Algorithm Tester\n"));
+    wxPrintf(_T("Sound of Sorting Special Edition - Algorithm Tester\n"));
 
     bool all_good = true;
 
