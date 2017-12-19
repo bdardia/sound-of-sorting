@@ -2303,17 +2303,19 @@ void flashSortMain(SortArray& array)
 
 void gravitySort(SortArray& A)
 {
-	// make copy array of ints
+	// make copy array of ints and get max
+
 	int copy[A.size()];
 	std::vector<value_type> copy2(A.size());
 	
+	size_t max = 0;
+
 	for (size_t i = 0; i < A.size(); i += 1)
 	{
 		copy[i] = A[i].get();
+		if (copy[i] > copy[max])
+			max = i;
 	}
-
-	// get max
-	size_t max = findMax(A, A.size());
 
 	size_t index = 0;
 
