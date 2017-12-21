@@ -2017,7 +2017,9 @@ void pigeonholeSort(SortArray& arr)
 	// Traverse through input array and put every
 	// element in its respective hole
 	for (size_t i = 0; i < n; i++)
+	{
 		holes[arr[i].get() - min].push_back(arr[i]);
+	}
 
 	// Traverse through all holes one by one. For
 	// every hole, take its elements and put in
@@ -2303,7 +2305,7 @@ void flashSortMain(SortArray& array)
 
 void gravitySort(SortArray& A)
 {
-	// make copy array of ints and get max
+	// make copy array of ints and ArrayItems and get max
 
 	int copy[A.size()];
 	std::vector<value_type> copy2(A.size());
@@ -2313,6 +2315,7 @@ void gravitySort(SortArray& A)
 	for (size_t i = 0; i < A.size(); i += 1)
 	{
 		copy[i] = A[i].get();
+		copy2[i] = A[i];
 		if (copy[i] > copy[max])
 			max = i;
 	}
@@ -2327,16 +2330,15 @@ void gravitySort(SortArray& A)
 			copy[o] -= 1;
 			if (copy[o] == 0)
 			{
-				copy2[index] = A[o];
-				A.mark(o, 2);
+				A.set(index, copy2[o]);
+				A.mark(o, 6);
 				index += 1;
 			}
 		}
 	}
-	A.unmark_all();
-	// set A to finished array
-	for (size_t i = 0; i < A.size(); i += 1)
-	{
-		A.set(i, copy2[i]);
-	}
+	// set A to finished array (not needed because it's in place now)
+	//for (size_t i = 0; i < A.size(); i += 1)
+	//{
+	//	A.set(i, copy2[i]);
+	//}
 }
