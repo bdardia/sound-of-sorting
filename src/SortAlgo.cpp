@@ -71,6 +71,8 @@ const struct AlgoEntry g_algolist[] =
     { _("Quick Sort (dual pivot)"), &QuickSortDualPivot, UINT_MAX, UINT_MAX,
       _("Dual pivot quick sort variant: partitions \"<1<2?>\" using three pointers, "
         "two at left and one at right.") },
+    { _("Three-Way Quicksort"), &threeWayQuicksortMain, UINT_MAX, 512,
+  	  _("Usually the fastest version of quicksort.") },
     { _("Bubble Sort"), &BubbleSort, UINT_MAX, UINT_MAX,
       wxEmptyString },
     { _("Cocktail Shaker Sort"), &CocktailShakerSort, UINT_MAX, UINT_MAX,
@@ -2499,7 +2501,7 @@ void arl(SortArray& arr, int start, int end, int leftBitIndex)
 }
 
 
-void adaptiveRadixLeft(class SortArray &a)
+void adaptiveRadixLeft(SortArray &a)
 {
 	int p[a.size()];
 
@@ -2514,7 +2516,7 @@ void adaptiveRadixLeft(class SortArray &a)
 		xxor |= p[i];
 	}
 
-	//find the most signifcant bit that is set
+	//find the most significant bit that is set
 	unsigned int mask = 0x80000000;
 	int index = -1;
 	for (int j = 31; j >= 0; j--)
@@ -2541,4 +2543,91 @@ void adaptiveRadixLeft(class SortArray &a)
     }
 
 	arl(a, 0, a.size() - 1, index);
+}
+
+void threeWayPartition(SortArray& arr, int left, int right, int &i, int &j)
+{
+	i = left - 1;
+	j = right;
+	volatile ssize_t p = left - 1;
+	volatile ssize_t q = right;
+	int v = arr[right].get();
+
+  arr.mark(left);
+  arr.mark(right);
+
+  arr.watch(&p, 3);
+  arr.watch(&q, 3);
+
+	while (true)
+	{
+		while (arr[++i].get() < v);
+
+		while (v < arr[--j].get())
+		{
+			if (j == left)
+			{
+				break;
+			}
+		}
+
+		if (i >= j)
+		{
+			break;
+		}
+
+    arr.swap(i, j);
+
+		if (arr[i].get() == v)
+		{
+			p++;
+
+      arr.swap(i, p);
+		}
+
+		if (arr[j].get() == v)
+		{
+			q--;
+
+      arr.swap(j, q);
+		}
+	}
+
+  arr.swap(i, right);
+
+	j = i - 1;
+	for (int k = left; k < p; k++, j--)
+	{
+    arr.swap(j, k);
+	}
+
+	i = i + 1;
+
+	for (int k = right - 1; k > q; k--, i++)
+	{
+    arr.swap(i, k);
+	}
+
+  arr.unmark_all();
+  arr.unwatch_all();
+}
+void threeWayQuicksort(SortArray& arr, int left, int right)
+{
+	if (right <= left)
+	{
+		return;
+	}
+
+	int i;
+	int j;
+
+	threeWayPartition(arr, left, right, i, j);
+
+	threeWayQuicksort(arr, left, j);
+	threeWayQuicksort(arr, i, right);
+}
+
+void threeWayQuicksortMain(SortArray& arr)
+{
+	threeWayQuicksort(arr, 0, arr.size() - 1);
 }
