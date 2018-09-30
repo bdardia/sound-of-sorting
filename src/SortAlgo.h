@@ -110,6 +110,7 @@ void dualCocktailMerge(class SortArray &a);
 void pigeonholeSort(class SortArray &a);
 void flashSortMain(class SortArray &a);
 void gravitySort(class SortArray &a);
+void adaptiveRadixLeft(class SortArray &a);
 
 // ****************************************************************************
 // *** Iterator Adapter

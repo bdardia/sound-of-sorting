@@ -133,7 +133,9 @@ const struct AlgoEntry g_algolist[] =
 	{ _("Smart Sort"), &smartSort, UINT_MAX, 512,
 	_("A combo sort I'm working on") },
 	{ _("Gravity Sort"), &gravitySort, UINT_MAX, 512,
-	_("A natural sorting algorithm of O(S) complexity, where S is the sum of input numbers.") }
+	_("A natural sorting algorithm of O(S) complexity, where S is the sum of input numbers.") },
+	{ _("Adaptive Left Radix"), &adaptiveRadixLeft, UINT_MAX, 512,
+	_("Similar to flashsort, extremely fast.") }
 };
 
 const size_t g_algolist_size = sizeof(g_algolist) / sizeof(g_algolist[0]);
@@ -1756,7 +1758,7 @@ void BenRadix(SortArray& inputArray)
 		runTime += 1;
 	}
 
-	
+
 }
 void flip(SortArray& arr, size_t i)
 {
@@ -1781,12 +1783,12 @@ size_t findMax(SortArray& arr, size_t n)
 		{
 			mi = i;
 		}
-		
+
 	}
 	return mi;
 }
 
-// The main function that sorts given array using flip 
+// The main function that sorts given array using flip
 // operations
 void pancakeSort(SortArray& arr)
 {
@@ -1795,7 +1797,7 @@ void pancakeSort(SortArray& arr)
 	// current size by one
 	for (size_t curr_size = n; curr_size > 1; --curr_size)
 	{
-		// Find index of the maximum element in 
+		// Find index of the maximum element in
 		// arr[0..curr_size-1]
 		size_t mi = findMax(arr, curr_size);
 
@@ -1804,7 +1806,7 @@ void pancakeSort(SortArray& arr)
 		if (mi != curr_size - 1)
 		{
 			// To move at the end, first move maximum number
-			// to beginning 
+			// to beginning
 			flip(arr, mi);
 
 			// Now move the maximum number to end by reversing
@@ -1823,7 +1825,7 @@ void inPlaceRadix(SortArray& v) {
 	}
 
 	int bucket[10]; // store first index for that digit
-	int bucket_max_index[10]; // store maximum index for that digit 
+	int bucket_max_index[10]; // store maximum index for that digit
 	size_t exp = 1;
 
 	while (max_number / exp > 0) {
@@ -1936,7 +1938,7 @@ void smartSort(SortArray& a)
 
 		runTime += 1;
 	}
-	
+
 	// Timsort the mostly sorted list
 	TimSort(a);
 }
@@ -1981,7 +1983,7 @@ void dualCocktailMerge(SortArray& A)
 	A.mark(firstQuarter, 2);
 	A.mark(mid, 2);
 	A.mark(thirdQuarter, 2);
-	
+
 	// cocktail each quarter
 	CocktailShakerSort2(A, 0, firstQuarter);
 	A.unmark(firstQuarter);
@@ -2019,6 +2021,7 @@ void pigeonholeSort(SortArray& arr)
 	for (size_t i = 0; i < n; i++)
 	{
 		holes[arr[i].get() - min].push_back(arr[i]);
+		arr.mark(i, 6);
 	}
 
 	// Traverse through all holes one by one. For
@@ -2175,7 +2178,7 @@ void flashsort(SortArray& array, size_t length)
 	//a new class boundary && that class hasn't yet
 	//had all of its elements moved inside its borders;
 
-	//This is called a cycle leader since you know 
+	//This is called a cycle leader since you know
 	//that you can begin permuting again here. You know
 	//this becuase it is the lowest index of the class
 	//and as such A(j) must be out of place or else all
@@ -2274,10 +2277,10 @@ void flashsort(SortArray& array, size_t length)
 		//of it then...
 		if (classSize > threshold && classSize > minElements)
 		{
-			//...attempt to flashsort the class. This will work 
+			//...attempt to flashsort the class. This will work
 			//well if the elements inside the class are uniformly
-			//distributed throughout the class otherwise it will 
-			//perform badly, O(n^2) worst case, since we will have 
+			//distributed throughout the class otherwise it will
+			//perform badly, O(n^2) worst case, since we will have
 			//performed another classification and permutation step
 			//and not succeeded in making the problem significantly
 			//smaller for the next level of recursion. However,
@@ -2309,7 +2312,7 @@ void gravitySort(SortArray& A)
 
 	int copy[A.size()];
 	std::vector<value_type> copy2(A.size());
-	
+
 	size_t max = 0;
 
 	for (size_t i = 0; i < A.size(); i += 1)
@@ -2341,4 +2344,201 @@ void gravitySort(SortArray& A)
 	//{
 	//	A.set(i, copy2[i]);
 	//}
+}
+
+void arl(SortArray& arr, int start, int end, int leftBitIndex)
+{
+	int numElements = end - start + 1;
+
+	if (numElements == 0)
+	{
+		return;
+	}
+
+	const int nbmax = 11;
+	const int nbmin = 4;
+
+	//compute the number of bits to be used in the next radix digit
+	//the digit must be less than nbmax bits wide; note however that
+	//it can be smaller than nbmin bits
+	int numBits = leftBitIndex + 1;
+	if (numBits > 11)
+	{
+		numBits = 11;
+	}
+
+	while ((1 << numBits) > numElements && numBits > nbmin)
+	{
+		numBits--;
+	}
+
+	//assert: numBits will be at least 1
+	unsigned int digitRange = 0x00000001 << numBits;
+
+	//allocate the two supporting arrays - I don't think two arrays
+	//are strictly necessary (see my flashsort imp.) but I use them
+	//to be consistant with the algorithm as it is described
+	int* equalEndIndex = new int[digitRange];
+	int* equalStartIndex = new int[digitRange];
+
+	//init counts to zero
+	for (unsigned int i = 0; i < digitRange; i++)
+	{
+		equalEndIndex[i] = 0;
+	}
+
+	unsigned int value;
+	unsigned int offset = leftBitIndex + 1 - numBits;
+	unsigned int mask;
+
+	//create the new radix digit mask
+	const unsigned int allones = 0xFFFFFFFF;
+	unsigned int shiftLeft = allones << offset;
+	unsigned int shiftRight = allones >> (31 - leftBitIndex);
+	mask = shiftLeft & shiftRight;
+
+	//keep a count for each of the digitRange different values
+	//of the new radix digit
+	for (int j = start; j <= end; j++)
+	{
+		//determine the value for the digit of interest
+		value = (arr[j].get() & mask) >> offset;
+
+		//add one to the count for this value
+		equalEndIndex[value] += 1;
+	}
+
+	//holds the ending index + 1 and the starting index respectively
+	//for each of the 2^numBits distinct values of the new radix digit
+	//since each radix digit will, in general, have several elements
+	//that have equal valued radix digits; the starting index array
+	//will be decremented until it reaches the actual starting index
+	//after the permutation step below;
+	//see counting sort for more details on this summation
+	equalStartIndex[0] = equalEndIndex[0];
+	for (unsigned int m = 1; m < digitRange; m++)
+	{
+		equalEndIndex[m] = equalEndIndex[m] + equalEndIndex[m - 1];
+		equalStartIndex[m] = equalEndIndex[m];
+	}
+
+	//******* permutation step ********
+	//see flashsort for an detailed explanation
+
+	//cycle leader
+	int leader = start;
+	int numMoves = 0;
+
+	//an index into the equalStartIndex array
+	unsigned int starts_i = digitRange - 1;
+
+	//while there are still more elements to permute into place
+	while (numMoves < numElements)
+	{
+		//find the next cycle leader
+		while ((leader - start) >= equalStartIndex[starts_i])
+		{
+			leader++;
+			starts_i = (arr[leader].get() & mask) >> offset;
+		}
+
+		int evicted = arr[leader].get();
+
+		//permute elements until a new cycle leader is needed
+		while ((leader - start) < equalStartIndex[starts_i])
+		{
+			starts_i = (evicted & mask) >> offset;
+
+			//the new location of the evicted element
+			int location = equalStartIndex[starts_i] - 1 + start;
+
+			//swap the value currently residing at the new
+			//location with the evicted value
+			int temp = arr[location].get();
+			arr.set(location, ArrayItem(evicted));
+			evicted = temp;
+
+			//see counting sort
+			equalStartIndex[starts_i] -= 1;
+
+			//another element was moved
+			numMoves++;
+		}
+	}
+
+	//******* recursive step ********
+
+	const int SEGMENT_SIZE_THRESHOLD = 20;
+
+	//if there are still more digits to the right to sort on
+	if (leftBitIndex + 1 - numBits > 0) //correction to the algorithm as stated in Maus's paper
+	{
+		//for all the equal valued elements discovered for this digit
+		for (unsigned int s = 0; s < digitRange; s++)
+		{
+			int segmentSize = equalEndIndex[s] - equalStartIndex[s];
+			if (segmentSize > 1)
+			{
+				if (segmentSize > SEGMENT_SIZE_THRESHOLD)
+				{
+					arl(arr, start + equalStartIndex[s], //start index for segment
+						start + equalEndIndex[s] - 1, //end index for segment
+						leftBitIndex - numBits);
+				}
+				else
+				{
+					InsertionSortIndex(arr, numElements);
+                    return;
+				}
+			}
+		}
+	}
+
+	delete[] equalStartIndex;
+	delete[] equalEndIndex;
+}
+
+
+void adaptiveRadixLeft(class SortArray &a)
+{
+	int p[a.size()];
+
+	for (int i = 0; i < a.size(); i++)
+	{
+		p[i] = a[i].get();
+	}
+
+	unsigned int xxor = p[0];
+	for (int i = 1; i < a.size(); i++)
+	{
+		xxor |= p[i];
+	}
+
+	//find the most signifcant bit that is set
+	unsigned int mask = 0x80000000;
+	int index = -1;
+	for (int j = 31; j >= 0; j--)
+	{
+		unsigned int value = xxor & mask;
+		value = value >> j;
+		mask = mask >> 1;
+		if (value)
+		{
+			index = j;
+			break;
+		}
+	}
+
+	if (index == -1)
+	{
+		//all the values are 0
+		return;
+	}
+
+	for (int i = 0; i < a.size(); i++)
+    {
+        a.set(i, ArrayItem(p[i]));
+    }
+
+	arl(a, 0, a.size() - 1, index);
 }
