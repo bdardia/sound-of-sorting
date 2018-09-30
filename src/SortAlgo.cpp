@@ -1997,7 +1997,7 @@ void dualCocktailMerge(SortArray& A)
 	TimSort(A);
 }
 
-void pigeonholeSort(SortArray& arr)
+void pigeonholeSort(SortArray& arr) // TIMING NOT RELIABLE - WORK DONE IN COPY ARRAY
 {
 	size_t n = arr.size();
 	// Find minimum and maximum values in arr[]
@@ -2306,7 +2306,7 @@ void flashSortMain(SortArray& array)
 	flashsort(array, array.size());
 }
 
-void gravitySort(SortArray& A)
+void gravitySort(SortArray& A) // TIMING NOT RELIABLE - WORK DONE IN COPY ARRAY
 {
 	// make copy array of ints and ArrayItems and get max
 
