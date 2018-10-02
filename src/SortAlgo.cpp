@@ -110,6 +110,8 @@ const struct AlgoEntry g_algolist[] =
 	_("Aims for the minimun number of inversions.") },
     { _("Radix Sort (MSD)"), &RadixSortMSD, UINT_MAX, UINT_MAX,
       _("Most significant digit radix sort, which permutes items in-place by walking cycles.") },
+  { _("Histogram Sort"), &histogramSort, UINT_MAX, UINT_MAX,
+    _("An extremely obscure sorting algorithm similar to radix sort.") },
 	{ _("Pigeonhole Sort"), &pigeonholeSort, UINT_MAX, 512,
 	_("Works well when the number of elements and number of possible key values are similar.") },
     { _("std::sort (gcc)"), &StlSort, UINT_MAX, inversion_count_instrumented,
@@ -134,6 +136,10 @@ const struct AlgoEntry g_algolist[] =
       wxEmptyString },
 	{ _("Smart Sort"), &smartSort, UINT_MAX, 512,
 	_("A combo sort I'm working on") },
+  { _("Set Sort"), &setSort, UINT_MAX, 512,
+	_("A simple sorting algorithm that uses array indexes to create a finished array. "
+    "Complexity is based solely on the largest value in the array. "
+  ) },
 	{ _("Gravity Sort"), &gravitySort, UINT_MAX, 512,
 	_("A natural sorting algorithm of O(S) complexity, where S is the sum of input numbers.") },
 	{ _("Adaptive Left Radix"), &adaptiveRadixLeft, UINT_MAX, 512,
@@ -1820,11 +1826,7 @@ void pancakeSort(SortArray& arr)
 
 void inPlaceRadix(SortArray& v) {
 	//search for maximum number
-	size_t max_number = v[0].get();
-	for (size_t i = 1; i<v.size(); i++) {
-		if (max_number < v[i].get())
-			max_number = v[i].get();
-	}
+	size_t max_number = v.array_max();
 
 	int bucket[10]; // store first index for that digit
 	int bucket_max_index[10]; // store maximum index for that digit
@@ -2003,13 +2005,11 @@ void pigeonholeSort(SortArray& arr) // TIMING NOT RELIABLE - WORK DONE IN COPY A
 {
 	size_t n = arr.size();
 	// Find minimum and maximum values in arr[]
-	int min = arr[0].get(), max = arr[0].get();
+	int min = arr[0].get(), max = arr.array_max();
 	for (size_t i = 1; i < n; i++)
 	{
 		if (arr[i].get() < min)
 			min = arr[i].get();
-		if (arr[i].get() > max)
-			max = arr[i].get();
 	}
 	int range = max - min + 1; // Find range
 
@@ -2503,17 +2503,17 @@ void arl(SortArray& arr, int start, int end, int leftBitIndex)
 
 void adaptiveRadixLeft(SortArray &a)
 {
-	int p[a.size()];
+	// int p[a.size()];
+  //
+	// for (int i = 0; i < a.size(); i++)
+	// {
+	// 	p[i] = a[i].get();
+	// }
 
-	for (int i = 0; i < a.size(); i++)
-	{
-		p[i] = a[i].get();
-	}
-
-	unsigned int xxor = p[0];
+	unsigned int xxor = a[0].get();
 	for (int i = 1; i < a.size(); i++)
 	{
-		xxor |= p[i];
+		xxor |= a[i].get();
 	}
 
 	//find the most significant bit that is set
@@ -2537,10 +2537,10 @@ void adaptiveRadixLeft(SortArray &a)
 		return;
 	}
 
-	for (int i = 0; i < a.size(); i++)
-    {
-        a.set(i, ArrayItem(p[i]));
-    }
+	// for (int i = 0; i < a.size(); i++)
+  //   {
+  //       a.set(i, ArrayItem(p[i]));
+  //   }
 
 	arl(a, 0, a.size() - 1, index);
 }
@@ -2630,4 +2630,143 @@ void threeWayQuicksort(SortArray& arr, int left, int right)
 void threeWayQuicksortMain(SortArray& arr)
 {
 	threeWayQuicksort(arr, 0, arr.size() - 1);
+}
+
+int gcd(int a, int b)
+{
+	if (a == 0)
+		return b;
+	return gcd(b%a, a);
+}
+
+int phi(unsigned int n, int length)
+{
+	unsigned int result = 1;
+	for (int i = 2; i < length; i++)
+		if (gcd(i, n) == 1)
+			result++;
+	return result;
+}
+
+void histogramSortBounds(SortArray& arr, int low, int high)
+{
+	int j;
+  int tempr;
+
+	std::vector<int>out(high - low);
+	std::vector<int>iwk(high - low);
+	j = 0;
+
+	for (int i = low + 1; i < high; i++)
+	{
+		iwk[i] = 0;
+	}
+
+	iwk[low] = low - 1;
+
+	for (int i = low; i < high; i++)
+	{
+		iwk[phi(arr[i].get(), high - low)]++;
+	}
+	for (int i = low; i < high - 1; i++)
+	{
+		iwk[i + 1] += iwk[i];
+	}
+	for (int i = high - 1; i >= low; i--)
+	{
+    out[iwk[phi(arr[i].get(), high - low)]--] = arr[i].get();
+    arr.mark(i);
+	}
+  arr.unmark_all();
+	for (int i = low; i < high; i++)
+	{
+    arr.set(i, ArrayItem(out[i]));
+	}
+	for (int i = high - 2; i >= low; i--)
+	{
+    arr.mark(i);
+    tempr = arr[i].get();
+		for (j = i + 1; j < high && (tempr > arr[j].get()); j++)
+		{
+		  arr.set(j - 1, arr[j]);
+		}
+    arr.set(j - 1, ArrayItem(tempr));
+    arr.unmark(i);
+	}
+}
+
+void histogramSort(SortArray& arr)
+{
+	int low, high, j;
+  int tempr;
+
+	std::vector<int>out(arr.size());
+	std::vector<int>iwk(arr.size());
+
+	low = 0;
+	high = arr.size();
+	j = 0;
+
+	for (int i = low + 1; i < high; i++)
+	{
+		iwk[i] = 0;
+	}
+
+	iwk[low] = low - 1;
+
+	for (int i = low; i < high; i++)
+	{
+		iwk[phi(arr[i].get(), arr.size())]++;
+	}
+	for (int i = low; i < high - 1; i++)
+	{
+		iwk[i + 1] += iwk[i];
+	}
+	for (int i = high - 1; i >= low; i--)
+	{
+    out[iwk[phi(arr[i].get(), arr.size())]--] = arr[i].get();
+	}
+	for (int i = low; i < high; i++)
+	{
+    arr.set(i, ArrayItem(out[i]));
+	}
+	for (int i = high - 2; i >= low; i--)
+	{
+    arr.mark(i);
+    tempr = arr[i].get();
+		for (j = i + 1; j < high && (tempr > arr[j].get()); j++)
+		{
+		  arr.set(j - 1, arr[j]);
+		}
+    arr.set(j - 1, ArrayItem(tempr));
+    arr.unmark(i);
+	}
+}
+
+void setSort(SortArray& arr)
+{
+	int max = arr.array_max();
+
+	std::vector<int> k;
+
+	for (int i = 0; i <= max; i++)
+	{
+		k.push_back(0);
+	}
+
+	for (int i = 0; i < arr.size(); i++)
+	{
+		k[arr[i].get()] = 1;
+	}
+
+	int currentIndex = 0;
+
+	for (int i = 0; i <= max; i++)
+	{
+		if (k[i] == 1)
+		{
+      arr.set(currentIndex, ArrayItem(i));
+			currentIndex++;
+		}
+	}
 }

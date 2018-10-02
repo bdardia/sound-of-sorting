@@ -112,6 +112,8 @@ void flashSortMain(class SortArray &a);
 void gravitySort(class SortArray &a);
 void adaptiveRadixLeft(class SortArray &a);
 void threeWayQuicksortMain(class SortArray &a);
+void histogramSort(class SortArray &a);
+void setSort(class SortArray &a);
 
 // ****************************************************************************
 // *** Iterator Adapter
