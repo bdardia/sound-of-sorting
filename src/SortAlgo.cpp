@@ -143,7 +143,9 @@ const struct AlgoEntry g_algolist[] =
 	{ _("Gravity Sort"), &gravitySort, UINT_MAX, 512,
 	_("A natural sorting algorithm of O(S) complexity, where S is the sum of input numbers.") },
 	{ _("Adaptive Left Radix"), &adaptiveRadixLeft, UINT_MAX, 512,
-	_("Similar to flashsort, extremely fast.") }
+	_("Similar to flashsort, extremely fast.") },
+  { _("Slide Sort"), &slideSort, UINT_MAX, 512,
+	_("An algorithm I've been working on that's best for arrays that are already mostly sorted.") }
 };
 
 const size_t g_algolist_size = sizeof(g_algolist) / sizeof(g_algolist[0]);
@@ -1734,36 +1736,36 @@ void BenRadix(SortArray& inputArray)
 		{
 			continue;
 		}
-		if (runTime > 5)
+		/*if (runTime > 5)
 		{
 			TimSort(inputArray);
 			continue;
-		}
+		}*/
 		size_t startingNum = 0;
 		size_t startingIndex = 0;
 
 		while (startingNum < 4)
 		{
-			for (size_t i = 0; i < inputArray.size(); i += 1)
+			for (size_t i = 0; i < inputArray.size(); i++)
 			{
 				size_t currentDigit = inputArray[i].get() / mod % RADIX;
 				if (currentDigit == startingNum)
 				{
 					copy.at(startingIndex) = inputArray[i];
-					startingIndex += 1;
+					startingIndex++;
 				}
 			}
-			startingNum += 1;
+			startingNum++;
 		}
 
-		mod += 1;
+		mod++;
 
-		for (size_t i = 0; i < copy.size(); i += 1)
+		for (size_t i = 0; i < copy.size(); i++)
 		{
 			inputArray.set(i, copy[i]);
 		}
 
-		runTime += 1;
+		runTime++;
 	}
 
 
@@ -2769,4 +2771,57 @@ void setSort(SortArray& arr)
 			currentIndex++;
 		}
 	}
+}
+
+void slideSort(SortArray& arr)
+{
+  int n = arr.size();
+
+  bool ascending = false; // how the algorithm keeps track if its currently tracking a sequence
+	int startIndex = 0, seqStartIndex = 0, originalIndex = 0, failedRuns = 0;
+	int numSeqs = 0;
+
+  for (int i = 1; i < n; i++)
+  {
+    if (arr[i] > arr[i - 1])
+    {
+      if (!ascending)
+      {
+        ascending = true;
+        seqStartIndex = i - 1;
+      }
+    }
+    else
+    {
+      if (i - seqStartIndex > 1)
+      {
+        numSeqs++;
+        if (numSeqs == 1)
+        {
+          originalIndex = seqStartIndex;
+	  i--;
+	}
+        else
+        {
+          Merge(arr, originalIndex, seqStartIndex, i);
+	  Merge(arr, 0, originalIndex, i);
+          numSeqs = 0;
+        }
+      }
+      else
+      {
+        failedRuns++;
+        if (failedRuns == 2 && (i + 1) < n)
+        {
+          arr.swap(i-1, i);
+          i--;
+          failedRuns = 0;
+        }
+      }
+      ascending = false;
+      seqStartIndex = i;
+    }
+  }
+
+  InsertionSortIndex(arr, n);
 }
